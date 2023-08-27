@@ -20,8 +20,6 @@ public class Employee {
     @Autowired
     private FactoryConfig factoryConfig;
 
-    private Connection connection;
-
     @DeleteMapping
     public String deleteEmployee(@RequestBody EmployeeDto employeeDto) {
         try {
@@ -54,14 +52,46 @@ public class Employee {
         return null;
     }
 
+    @PutMapping
+    public String updateEmployee(@RequestBody EmployeeDto employeeDto) {
+        try {
+            try (Connection connection = FactoryConfig.getInstance().getConnection()) {
+                connection.setAutoCommit(false);
+                String sql = "UPDATE Employee SET empName = ?, empEmail = ?, empDepartment = ?, empProfile = ? WHERE empId = ?";
+                try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                    preparedStatement.setString(1, employeeDto.getEmpName());
+                    preparedStatement.setString(2, employeeDto.getEmpEmail());
+                    preparedStatement.setString(3, employeeDto.getEmpDepartment());
+                    preparedStatement.setBytes(4, employeeDto.getEmpProfile());
+                    preparedStatement.setString(5, employeeDto.getEmpId());
+
+                    int rowsUpdated = preparedStatement.executeUpdate();
+
+                    if (rowsUpdated > 0) {
+                        connection.commit();
+                        return "Employee updated successfully!";
+                    } else {
+                        connection.rollback();
+                        return "Employee with ID " + employeeDto.getEmpId() + " not found.";
+                    }
+                } catch (SQLException e) {
+                    connection.rollback();
+                }
+            }
+        } catch (SQLException e) {
+        }
+        return "Error updating employee.";
+    }
+
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     String saveEmployeeData(@RequestParam String empId, @RequestParam String empName, @RequestParam String empEmail, @RequestParam String empDepartment, @RequestParam("profile") MultipartFile profileFile) throws IOException {
-
         byte[] profileBytes = profileFile.getBytes();
         String profileStr = Base64.getEncoder().encodeToString(profileBytes);
         EmployeeDto employeeDto = new EmployeeDto(empId, empName, empEmail, empDepartment, profileBytes);
         return saveEmployeeToDatabase(employeeDto);
     }
+
 
     private String saveEmployeeToDatabase(EmployeeDto employee) {
         try {
