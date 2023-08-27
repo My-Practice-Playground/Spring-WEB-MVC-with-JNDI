@@ -28,4 +28,5 @@ public class FactoryConfig {
             throw new RuntimeException(e.getCause().getMessage(), e);
         }
     }
+
 }
