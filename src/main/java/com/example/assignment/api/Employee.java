@@ -24,6 +24,26 @@ public class Employee {
 
     @DeleteMapping
     public String deleteEmployee(@RequestBody EmployeeDto employeeDto) {
+        try {
+            try (Connection connection = FactoryConfig.getInstance().getConnection()) {
+                connection.setAutoCommit(false);
+                String sql = "DELETE FROM Employee WHERE empId = ?";
+                try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                    preparedStatement.setString(1, employeeDto.getEmpId());
+                    int rowsDeleted = preparedStatement.executeUpdate();
+                    if (rowsDeleted > 0) {
+                        connection.commit();
+                        return "Employee deleted successfully!";
+                    } else {
+                        connection.rollback();
+                        return "Employee with ID " + employeeDto.getEmpId() + " not found.";
+                    }
+                } catch (SQLException e) {
+                    connection.rollback();
+                }
+            }
+        } catch (SQLException e) {
+        }
         return "Error deleting employee.";
     }
 
