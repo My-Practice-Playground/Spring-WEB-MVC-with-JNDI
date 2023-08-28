@@ -38,27 +38,9 @@ public class Employee {
     }
 
     @DeleteMapping
-    public String deleteEmployee(@RequestBody EmployeeDto employeeDto) {
-        try {
-            try (Connection connection = FactoryConfig.getInstance().getConnection()) {
-                connection.setAutoCommit(false);
-                String sql = "DELETE FROM Employee WHERE empId = ?";
-                try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                    preparedStatement.setString(1, employeeDto.getEmpId());
-                    if (preparedStatement.executeUpdate() > 0) {
-                        connection.commit();
-                        return "Employee deleted successfully!";
-                    } else {
-                        connection.rollback();
-                        return "Employee with ID " + employeeDto.getEmpId() + " not found.";
-                    }
-                } catch (SQLException e) {
-                    connection.rollback();
-                }
-            }
-        } catch (SQLException e) {
-        }
-        return "Error deleting employee.";
+    public String deleteEmployee(@RequestBody EmployeeDto employeeDto) throws SQLException, NamingException, ClassNotFoundException {
+        execute("DELETE FROM Employee WHERE empId = ?", employeeDto.getEmpId());
+        return "Employee deleted successfully!";
     }
 
     /*@GetMapping(value = "/empId")
@@ -68,10 +50,8 @@ public class Employee {
 
     @PutMapping
     public String updateEmployee(@RequestBody EmployeeDto employee) throws NamingException, SQLException, ClassNotFoundException {
-        String sql = "UPDATE Employee SET empName = ?, empEmail = ?, empDepartment = ?, empProfile = ? WHERE empId = ?";
-        execute(sql, employee.getEmpId(), employee.getEmpName(), employee.getEmpEmail(), employee.getEmpDepartment(), employee.getEmpProfile());
+        execute("UPDATE Employee SET empName = ?, empEmail = ?, empDepartment = ?, empProfile = ? WHERE empId = ?", employee.getEmpId(), employee.getEmpName(), employee.getEmpEmail(), employee.getEmpDepartment(), employee.getEmpProfile());
         return "Employee updated successfully!";
-
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -79,8 +59,7 @@ public class Employee {
         byte[] profileBytes = profileFile.getBytes();
         //   String profileStr = Base64.getEncoder().encodeToString(profileBytes); //bytes to String
         EmployeeDto employee = new EmployeeDto(empId, empName, empEmail, empDepartment, profileBytes);
-        String sql = "INSERT INTO Employee (empId, empName, empEmail, empDepartment, empProfile) VALUES (?, ?, ?, ?, ?)";
-        execute(sql, employee.getEmpId(), employee.getEmpName(), employee.getEmpEmail(), employee.getEmpDepartment(), employee.getEmpProfile());
+        execute("INSERT INTO Employee (empId, empName, empEmail, empDepartment, empProfile) VALUES (?, ?, ?, ?, ?)", employee.getEmpId(), employee.getEmpName(), employee.getEmpEmail(), employee.getEmpDepartment(), employee.getEmpProfile());
         return "Done";
     }
 }
