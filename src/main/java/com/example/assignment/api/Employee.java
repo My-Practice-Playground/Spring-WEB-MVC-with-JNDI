@@ -11,8 +11,8 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.sql.DataSource;
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @RestController
@@ -22,19 +22,12 @@ public class Employee {
     @Autowired
     private FactoryConfig factoryConfig;
 
-    public static <T> T execute(String sql, Object... args) throws SQLException, ClassNotFoundException, NamingException {
-        InitialContext ctx = new InitialContext();
-        DataSource pool = (DataSource) ctx.lookup("java:comp/env/jdbc/emp");
-        Connection connection = pool.getConnection();
-        PreparedStatement pstm = connection.prepareStatement(sql);
-        for (int i = 0; i < args.length; i++) {
-            pstm.setObject((i + 1), args[i]);
-        }
+    public static <T> T execute(String sql, Object... args) throws SQLException, NamingException {
+        DataSource pool = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/emp");
+        PreparedStatement pstm = pool.getConnection().prepareStatement(sql);
+        for (int i = 0; i < args.length; i++) pstm.setObject((i + 1), args[i]);
         System.out.println(sql);
-        if (sql.startsWith("SELECT") || sql.startsWith("select")) {
-            return (T) pstm.executeQuery();
-        }
-        return (T) ((Boolean) (pstm.executeUpdate() > 0));   // convert boolean to Boolean(Boxing type)
+        return (sql.startsWith("SELECT") || sql.startsWith("select")) ? (T) pstm.executeQuery() : (T) ((Boolean) (pstm.executeUpdate() > 0));   // convert boolean to Boolean(Boxing type)
     }
 
     @DeleteMapping
@@ -43,10 +36,15 @@ public class Employee {
         return "Employee deleted successfully!";
     }
 
-    /*@GetMapping(value = "/empId")
-    public String getEmployee(@RequestBody EmployeeDto employeeDto) {
-
-    }*/
+    @GetMapping(headers = "id")
+    public String getEmployee(@RequestHeader("id") String id) throws SQLException, NamingException, ClassNotFoundException {
+        ResultSet resultSet = execute("SELECT * FROM Employee WHERE empId = ?", id);
+        if (resultSet.next()) {
+            EmployeeDto employeeDto = new EmployeeDto(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getBytes(5));
+            return employeeDto.toString();
+        }
+        return "not found";
+    }
 
     @PutMapping
     public String updateEmployee(@RequestBody EmployeeDto employee) throws NamingException, SQLException, ClassNotFoundException {
