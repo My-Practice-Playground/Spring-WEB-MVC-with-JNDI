@@ -1,8 +1,6 @@
 package com.example.assignment.api;
 
 import com.example.assignment.dto.EmployeeDto;
-import com.example.assignment.util.FactoryConfig;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,10 +16,6 @@ import java.sql.SQLException;
 @RestController
 @RequestMapping("/emp")
 public class Employee {
-
-    @Autowired
-    private FactoryConfig factoryConfig;
-
     public static <T> T execute(String sql, Object... args) throws SQLException, NamingException {
         DataSource pool = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/emp");
         PreparedStatement pstm = pool.getConnection().prepareStatement(sql);
