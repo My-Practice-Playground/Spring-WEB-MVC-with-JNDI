@@ -7,11 +7,13 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Base64;
 
 @RestController
 @RequestMapping("/emp")
@@ -19,6 +21,21 @@ public class Employee {
 
     @Autowired
     private FactoryConfig factoryConfig;
+
+    public static <T> T execute(String sql, Object... args) throws SQLException, ClassNotFoundException, NamingException {
+        InitialContext ctx = new InitialContext();
+        DataSource pool = (DataSource) ctx.lookup("java:comp/env/jdbc/emp");
+        Connection connection = pool.getConnection();
+        PreparedStatement pstm = connection.prepareStatement(sql);
+        for (int i = 0; i < args.length; i++) {
+            pstm.setObject((i + 1), args[i]);
+        }
+        System.out.println(sql);
+        if (sql.startsWith("SELECT") || sql.startsWith("select")) {
+            return (T) pstm.executeQuery();
+        }
+        return (T) ((Boolean) (pstm.executeUpdate() > 0));   // convert boolean to Boolean(Boxing type)
+    }
 
     @DeleteMapping
     public String deleteEmployee(@RequestBody EmployeeDto employeeDto) {
@@ -28,8 +45,7 @@ public class Employee {
                 String sql = "DELETE FROM Employee WHERE empId = ?";
                 try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
                     preparedStatement.setString(1, employeeDto.getEmpId());
-                    int rowsDeleted = preparedStatement.executeUpdate();
-                    if (rowsDeleted > 0) {
+                    if (preparedStatement.executeUpdate() > 0) {
                         connection.commit();
                         return "Employee deleted successfully!";
                     } else {
@@ -45,74 +61,26 @@ public class Employee {
         return "Error deleting employee.";
     }
 
-
-    @GetMapping(value = "/empId")
+    /*@GetMapping(value = "/empId")
     public String getEmployee(@RequestBody EmployeeDto employeeDto) {
-//        return employeeDto;
-        return null;
-    }
+
+    }*/
 
     @PutMapping
-    public String updateEmployee(@RequestBody EmployeeDto employeeDto) {
-        try {
-            try (Connection connection = FactoryConfig.getInstance().getConnection()) {
-                connection.setAutoCommit(false);
-                String sql = "UPDATE Employee SET empName = ?, empEmail = ?, empDepartment = ?, empProfile = ? WHERE empId = ?";
-                try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                    preparedStatement.setString(1, employeeDto.getEmpName());
-                    preparedStatement.setString(2, employeeDto.getEmpEmail());
-                    preparedStatement.setString(3, employeeDto.getEmpDepartment());
-                    preparedStatement.setBytes(4, employeeDto.getEmpProfile());
-                    preparedStatement.setString(5, employeeDto.getEmpId());
+    public String updateEmployee(@RequestBody EmployeeDto employee) throws NamingException, SQLException, ClassNotFoundException {
+        String sql = "UPDATE Employee SET empName = ?, empEmail = ?, empDepartment = ?, empProfile = ? WHERE empId = ?";
+        execute(sql, employee.getEmpId(), employee.getEmpName(), employee.getEmpEmail(), employee.getEmpDepartment(), employee.getEmpProfile());
+        return "Employee updated successfully!";
 
-                    int rowsUpdated = preparedStatement.executeUpdate();
-
-                    if (rowsUpdated > 0) {
-                        connection.commit();
-                        return "Employee updated successfully!";
-                    } else {
-                        connection.rollback();
-                        return "Employee with ID " + employeeDto.getEmpId() + " not found.";
-                    }
-                } catch (SQLException e) {
-                    connection.rollback();
-                }
-            }
-        } catch (SQLException e) {
-        }
-        return "Error updating employee.";
     }
-
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    String saveEmployeeData(@RequestParam String empId, @RequestParam String empName, @RequestParam String empEmail, @RequestParam String empDepartment, @RequestParam("profile") MultipartFile profileFile) throws IOException {
+    String saveEmployeeData(@RequestParam String empId, @RequestParam String empName, @RequestParam String empEmail, @RequestParam String empDepartment, @RequestParam("profile") MultipartFile profileFile) throws IOException, SQLException, NamingException, ClassNotFoundException {
         byte[] profileBytes = profileFile.getBytes();
-        String profileStr = Base64.getEncoder().encodeToString(profileBytes);
-        EmployeeDto employeeDto = new EmployeeDto(empId, empName, empEmail, empDepartment, profileBytes);
-        return saveEmployeeToDatabase(employeeDto);
-    }
-
-
-    private String saveEmployeeToDatabase(EmployeeDto employee) {
-        try {
-            try (Connection connection = FactoryConfig.getInstance().getConnection()) {
-                connection.setAutoCommit(false);
-                String sql = "INSERT INTO Employee (empId, empName, empEmail, empDepartment, empProfile) VALUES (?, ?, ?, ?, ?)";
-                try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                    preparedStatement.setString(1, employee.getEmpId());
-                    preparedStatement.setString(2, employee.getEmpName());
-                    preparedStatement.setString(3, employee.getEmpEmail());
-                    preparedStatement.setString(4, employee.getEmpDepartment());
-                    preparedStatement.setBytes(5, employee.getEmpProfile());
-                    preparedStatement.executeUpdate();
-                    connection.commit();
-                    return "Employee saved successfully!";
-                } catch (SQLException e) {
-                    connection.rollback();
-                }
-            }
-        } catch (SQLException e) {
-        }
-        return "Error! ";
+        //   String profileStr = Base64.getEncoder().encodeToString(profileBytes); //bytes to String
+        EmployeeDto employee = new EmployeeDto(empId, empName, empEmail, empDepartment, profileBytes);
+        String sql = "INSERT INTO Employee (empId, empName, empEmail, empDepartment, empProfile) VALUES (?, ?, ?, ?, ?)";
+        execute(sql, employee.getEmpId(), employee.getEmpName(), employee.getEmpEmail(), employee.getEmpDepartment(), employee.getEmpProfile());
+        return "Done";
     }
 }
