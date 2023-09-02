@@ -21,7 +21,9 @@ public class Employee {
         PreparedStatement pstm = pool.getConnection().prepareStatement(sql);
         for (int i = 0; i < args.length; i++) pstm.setObject((i + 1), args[i]);
         System.out.println(sql);
-        return (sql.startsWith("SELECT") || sql.startsWith("select")) ? (T) pstm.executeQuery() : (T) ((Boolean) (pstm.executeUpdate() > 0));   // convert boolean to Boolean(Boxing type)
+        return (sql.startsWith("SELECT") || sql.startsWith("select"))
+                ? (T) pstm.executeQuery()
+                : (T) ((Boolean) (pstm.executeUpdate() > 0));   // convert boolean to Boolean(Boxing type)
     }
 
     @DeleteMapping
